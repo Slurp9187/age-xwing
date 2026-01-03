@@ -65,6 +65,7 @@ impl HybridRecipient {
         Ok(Self { pub_key })
     }
 
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         bech32::encode(
             "age1pq",
@@ -89,12 +90,10 @@ impl AgeRecipient for HybridRecipient {
         file_key: &FileKey,
     ) -> Result<(Vec<Stanza>, HashSet<String>), age::EncryptError> {
         let mut rng = OsRng;
-        let (ct, mut ss) = self.pub_key.encapsulate(&mut rng).map_err(|_| {
-            age::EncryptError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Encapsulation failed",
-            ))
-        })?;
+        let (ct, mut ss) = self
+            .pub_key
+            .encapsulate(&mut rng)
+            .map_err(|_| age::EncryptError::Io(std::io::Error::other("Encapsulation failed")))?;
 
         let (mut aead_key_bytes, base_nonce) =
             derive_key_and_nonce(&ss, PQ_LABEL).map_err(map_hpke_error)?;
@@ -106,14 +105,9 @@ impl AgeRecipient for HybridRecipient {
         let aead = ChaCha20Poly1305::new(&aead_key);
         let wrapped = aead
             .encrypt(&nonce, file_key.expose_secret().as_slice())
-            .map_err(|_| {
-                age::EncryptError::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Encryption failed",
-                ))
-            })?;
+            .map_err(|_| age::EncryptError::Io(std::io::Error::other("Encryption failed")))?;
 
-        let ct_base64 = BASE64_STANDARD_NO_PAD.encode(&ct.to_bytes());
+        let ct_base64 = BASE64_STANDARD_NO_PAD.encode(ct.to_bytes());
         let stanza = Stanza {
             tag: STANZA_TAG.to_string(),
             args: vec![ct_base64],

@@ -5,7 +5,7 @@
 //! HKDF-SHA256 (KDF ID 0x0001), ChaCha20Poly1305 (AEAD ID 0x0003, base mode 0).
 
 use pq_xwing_hpke::{kdf::new_kdf, Error};
-use std::io::{Error as IoError, ErrorKind};
+use std::io::Error as IoError;
 
 pub const KEM_ID: u16 = 0x647a; // XWing768X25519 from pq_xwing_hpke::kem
 pub const KDF_ID: u16 = 0x0001; // HKDF-SHA256
@@ -80,15 +80,9 @@ pub fn compute_nonce(base_nonce: &[u8; 12], seq: u64) -> [u8; 12] {
 
 // Helper to map HPKE errors to Age's (call in pq.rs)
 pub fn map_hpke_error(e: Error) -> age::EncryptError {
-    age::EncryptError::Io(IoError::new(
-        ErrorKind::Other,
-        format!("HPKE error: {:?}", e),
-    ))
+    age::EncryptError::Io(IoError::other(format!("HPKE error: {:?}", e)))
 }
 
 pub fn map_hpke_decrypt_error(e: Error) -> age::DecryptError {
-    age::DecryptError::Io(IoError::new(
-        ErrorKind::Other,
-        format!("HPKE error: {:?}", e),
-    ))
+    age::DecryptError::Io(IoError::other(format!("HPKE error: {:?}", e)))
 }
