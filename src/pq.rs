@@ -1,4 +1,4 @@
-// Projects/age-xwing/src/pq.rs
+// src/pq.rs
 
 use age::{secrecy, Identity as AgeIdentity, Recipient as AgeRecipient};
 use age_core::format::{FileKey, Stanza};

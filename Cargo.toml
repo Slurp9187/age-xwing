@@ -9,15 +9,14 @@ license = "Apache-2.0 OR MIT"
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(fuzzing)'] }
 
 [dependencies]
-age = { path = "../age/age-rs/age" }
-age-core = { path = "../age/age-rs/age-core" }
-# pq-xwing-kem = { git = "https://github.com/Slurp9187/pq-xwing-kem", branch = "main" }
+age = "0.11"
+age-core = "0.11"
 pq-xwing-hpke = { path = "../pq-xwing-hpke" }
-libcrux-hkdf = "0.0.4"
 chacha20poly1305 = "0.10"
 base64 = "0.22"
 zeroize = "1.8"
 bech32 = "0.9"
 rand = {version = "0.9", features = ["std", "os_rng"]}
-rand_core = {version = "0.9", features = ["std", "os_rng"]}
-sha3 = "0.10.8"
+
+[dev-dependencies]
+tempfile = "3.24.0"
