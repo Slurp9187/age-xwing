@@ -2,6 +2,7 @@
 
 use age::{secrecy, Identity as AgeIdentity, Recipient as AgeRecipient};
 use age_core::format::{FileKey, Stanza};
+use age_core::secrecy::SecretString;
 use base64::prelude::{Engine as _, BASE64_STANDARD_NO_PAD};
 use bech32::{self, FromBase32, ToBase32, Variant};
 use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
@@ -9,6 +10,7 @@ use pq_xwing_hpke::xwing768x25519::{Ciphertext, DecapsulationKey, EncapsulationK
 use rand::{rngs::OsRng, TryRngCore};
 use secrecy::{ExposeSecret, SecretBox};
 use std::collections::HashSet;
+use std::str::FromStr;
 use zeroize::Zeroize;
 
 use crate::hpke_util::{
@@ -70,6 +72,14 @@ impl HybridRecipient {
             Variant::Bech32,
         )
         .expect("Encoding failed")
+    }
+}
+
+impl FromStr for HybridRecipient {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s).map_err(|_| "failed to parse HybridRecipient")
     }
 }
 
@@ -148,14 +158,24 @@ impl HybridIdentity {
         })
     }
 
-    pub fn to_string(&self) -> String {
-        bech32::encode(
-            "age-secret-key-pq-",
-            self.seed.expose_secret().to_base32(),
-            Variant::Bech32,
-        )
-        .expect("Encoding failed")
-        .to_uppercase()
+    pub fn to_string(&self) -> SecretString {
+        let sk_base32 = self.seed.expose_secret().to_base32();
+        let mut encoded = bech32::encode("age-secret-key-pq-", sk_base32, Variant::Bech32)
+            .expect("Encoding failed");
+        let ret = SecretString::from(encoded.to_uppercase());
+
+        // Clear intermediates
+        encoded.zeroize();
+
+        ret
+    }
+}
+
+impl FromStr for HybridIdentity {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s).map_err(|_| "failed to parse HybridIdentity")
     }
 }
 
