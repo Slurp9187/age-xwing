@@ -11,7 +11,8 @@ unexpected_cfgs = { level = "allow", check-cfg = ['cfg(fuzzing)'] }
 [dependencies]
 age = { path = "../age/age-rs/age" }
 age-core = { path = "../age/age-rs/age-core" }
-pq-xwing-kem = { git = "https://github.com/Slurp9187/pq-xwing-kem", branch = "main" }
+# pq-xwing-kem = { git = "https://github.com/Slurp9187/pq-xwing-kem", branch = "main" }
+pq-xwing-hpke = { path = "../pq-xwing-hpke" }
 libcrux-hkdf = "0.0.4"
 chacha20poly1305 = "0.10"
 base64 = "0.22"

@@ -1,15 +1,19 @@
+// Projects/age-xwing/src/pq.rs
+
 use age::{secrecy, Identity as AgeIdentity, Recipient as AgeRecipient};
 use age_core::format::{FileKey, Stanza};
 use base64::prelude::{Engine as _, BASE64_STANDARD_NO_PAD};
 use bech32::{self, FromBase32, ToBase32, Variant};
 use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
-use pq_xwing_kem::xwing768x25519::{Ciphertext, DecapsulationKey, EncapsulationKey};
+use pq_xwing_hpke::xwing768x25519::{Ciphertext, DecapsulationKey, EncapsulationKey};
 use rand::{rngs::OsRng, TryRngCore};
 use secrecy::{ExposeSecret, SecretBox};
 use std::collections::HashSet;
 use zeroize::Zeroize;
 
-use crate::hpke;
+use crate::hpke_util::{
+    compute_nonce, derive_key_and_nonce, map_hpke_decrypt_error, map_hpke_error,
+};
 
 const STANZA_TAG: &str = "mlkem768x25519"; // From plugin/age-go
 const PQ_LABEL: &[u8] = b"age-encryption.org/mlkem768x25519"; // From plugin/age-go
@@ -82,8 +86,9 @@ impl AgeRecipient for HybridRecipient {
             ))
         })?;
 
-        let (mut aead_key_bytes, base_nonce) = hpke::derive_key_and_nonce(&ss, PQ_LABEL);
-        let nonce_bytes = hpke::compute_nonce(&base_nonce, 0);
+        let (mut aead_key_bytes, base_nonce) =
+            derive_key_and_nonce(&ss, PQ_LABEL).map_err(map_hpke_error)?;
+        let nonce_bytes = compute_nonce(&base_nonce, 0u64);
         let nonce = Nonce::from(nonce_bytes);
         let aead_key = Key::from(aead_key_bytes);
         aead_key_bytes.zeroize();
@@ -200,8 +205,11 @@ impl AgeIdentity for HybridIdentity {
         );
         println!("SS hash: {:?}", ss);
         // Derive AEAD key
-        let (mut aead_key_bytes, base_nonce) = hpke::derive_key_and_nonce(&ss, PQ_LABEL);
-        let nonce_bytes = hpke::compute_nonce(&base_nonce, 0);
+        let (mut aead_key_bytes, base_nonce) = match derive_key_and_nonce(&ss, PQ_LABEL) {
+            Ok(result) => result,
+            Err(e) => return Some(Err(map_hpke_decrypt_error(e))),
+        };
+        let nonce_bytes = compute_nonce(&base_nonce, 0u64);
         let nonce = Nonce::from(nonce_bytes);
         let aead_key = Key::from(aead_key_bytes);
         println!(
