@@ -56,7 +56,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "age-pq-native-rs"
+name = "age-recipient-pq"
 version = "0.1.0"
 dependencies = [
  "age",
