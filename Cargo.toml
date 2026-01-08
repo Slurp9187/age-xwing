@@ -2,7 +2,7 @@
 name = "age-recipient-pq"
 version = "0.1.0"
 edition = "2021"
-description = "Native Rust implementation of age's post-quantum recipient, compatible with age CLI PQ encryption"
+description = "A Rust library providing post-quantum hybrid recipients and identities compatible with the age encryption format"
 license = "Apache-2.0 OR MIT"
 rustdoc-args = ["--no-deps"]
 
