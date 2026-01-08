@@ -1,4 +1,5 @@
 /target
+/code_packages
 
 *.del
 *.bak
