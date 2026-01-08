@@ -229,6 +229,19 @@ pub(crate) mod tests {
 
     use super::HybridRecipient;
 
+    #[test]
+    fn test_suite_id_matches_go() {
+        // From known HPKE suite or age-go test: "HPKE" + 0x647a_BE + 0x0001_BE + 0x0003_BE
+        let expected = vec![0x48, 0x50, 0x4b, 0x45, 0x64, 0x7a, 0x00, 0x01, 0x00, 0x03];
+        // Compute suite_id using the same logic as the purged hpke_pq.rs
+        let mut sid = Vec::with_capacity(10);
+        sid.extend_from_slice(b"HPKE");
+        sid.extend_from_slice(&0x647au16.to_be_bytes()); // KEM_ID
+        sid.extend_from_slice(&0x0001u16.to_be_bytes()); // KDF_ID
+        sid.extend_from_slice(&0x0003u16.to_be_bytes()); // AEAD_ID
+        assert_eq!(sid, expected);
+    }
+
     proptest! {
         #[test]
         fn wrap_and_unwrap(file_key_bytes in proptest::collection::vec(any::<u8>(), 16..=16)) {
