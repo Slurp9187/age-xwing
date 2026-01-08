@@ -13,7 +13,10 @@ const LOREM_FILE: &str = "tests/data/lorem.txt";
 
 #[test]
 fn test_create_and_verify_pq_encryption_with_cli() {
-    common::check_age_cli_version();
+    if !common::check_age_cli_version() {
+        eprintln!("SKIPPED: age CLI not available");
+        return;
+    }
 
     // Generate PQ keys (same as binary)
     let (recipient, identity) = HybridRecipient::generate().unwrap();

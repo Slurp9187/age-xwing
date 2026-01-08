@@ -11,7 +11,10 @@ mod common;
 
 #[test]
 fn test_decrypt_lorem_encrypted_with_age_cli() {
-    common::check_age_cli_version();
+    if !common::check_age_cli_version() {
+        eprintln!("SKIPPED: age CLI not available");
+        return;
+    }
 
     // Read the encrypted file (lorem.txt.age from age-cli)
     let encrypted_data =
