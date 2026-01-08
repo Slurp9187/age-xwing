@@ -11,15 +11,15 @@ const IDENTITY_FILE: &str = "tests/data/age_cli_pq_identity.key";
 fn test_decrypt_lorem_encrypted_with_age_cli() {
     // Read the encrypted file (lorem.txt.age from age-cli)
     let encrypted_data =
-        fs::read(ENCRYPTED_FILE).expect(&format!("Failed to read {}", ENCRYPTED_FILE));
+        fs::read(ENCRYPTED_FILE).unwrap_or_else(|_| panic!("Failed to read {}", ENCRYPTED_FILE));
 
     // Read the original plaintext for comparison
     let original_plaintext =
-        fs::read(PLAINTEXT_FILE).expect(&format!("Failed to read {}", PLAINTEXT_FILE));
+        fs::read(PLAINTEXT_FILE).unwrap_or_else(|_| panic!("Failed to read {}", PLAINTEXT_FILE));
 
     // Read the secret key from age-cli (corresponds to age_cli_pq_recipient.key public key)
-    let mut identity_str =
-        fs::read_to_string(IDENTITY_FILE).expect(&format!("Failed to read {}", IDENTITY_FILE));
+    let mut identity_str = fs::read_to_string(IDENTITY_FILE)
+        .unwrap_or_else(|_| panic!("Failed to read {}", IDENTITY_FILE));
     identity_str = identity_str.trim().to_string();
 
     // Parse the identity

@@ -55,7 +55,7 @@
 ///
 /// [`age`]: https://docs.rs/age/
 /// [`rage`]: https://github.com/str4d/rage
-
+///
 /// ## Post-Quantum Module
 ///
 /// This module contains the core implementation of the hybrid post-quantum recipient and identity.
