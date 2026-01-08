@@ -7,10 +7,14 @@ use std::iter::once;
 use std::process::Command;
 use tempfile::NamedTempFile;
 
+mod common;
+
 const LOREM_FILE: &str = "tests/data/lorem.txt";
 
 #[test]
 fn test_create_and_verify_pq_encryption_with_cli() {
+    common::check_age_cli_version();
+
     // Generate PQ keys (same as binary)
     let (recipient, identity) = HybridRecipient::generate().unwrap();
     let recipient_str = recipient.to_string();

@@ -7,8 +7,12 @@ const ENCRYPTED_FILE: &str = "tests/data/lorem.txt.age";
 const PLAINTEXT_FILE: &str = "tests/data/lorem.txt";
 const IDENTITY_FILE: &str = "tests/data/age_cli_pq_identity.key";
 
+mod common;
+
 #[test]
 fn test_decrypt_lorem_encrypted_with_age_cli() {
+    common::check_age_cli_version();
+
     // Read the encrypted file (lorem.txt.age from age-cli)
     let encrypted_data =
         fs::read(ENCRYPTED_FILE).unwrap_or_else(|_| panic!("Failed to read {}", ENCRYPTED_FILE));
