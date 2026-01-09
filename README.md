@@ -6,6 +6,11 @@ This crate has not been independently reviewed and audited by the `age` + `rage`
 
 A Rust library providing post-quantum hybrid recipients and identities compatible with the age encryption format.
 
+## Compatibility
+
+- Fully compatible with the age file format (CLI >= v1.3.0 for PQ support).
+- Designed for Rage integration without external dependencies.
+
 ## Overview
 
 This crate implements a post-quantum hybrid recipient and identity for the [age](https://github.com/str4d/rage) encryption tool. It combines ML-KEM-768 with X25519 for enhanced security against quantum attacks while maintaining compatibility with the age file format.
@@ -50,11 +55,6 @@ let identity = HybridIdentity::from_str("AGE-SECRET-KEY-PQ-1...").unwrap();
 - Post-quantum security via ML-KEM-768 (NIST standardized).
 - Hybrid design with X25519 for efficiency.
 - Secrets are zeroized using the `secrecy` crate.
-
-## Compatibility
-
-- Fully compatible with the age file format.
-- Designed for Rage integration without external dependencies.
 
 ## Testing
 
