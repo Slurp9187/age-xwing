@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-01-08
+## [0.1.0] - 2026-01-09
 
 ### Added
 - Initial release of `age-recipient-pq`, a Rust library providing post-quantum hybrid recipients and identities compatible with the age encryption format.
@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared test utilities in `tests/common.rs` for version checks and skips.
 - README.md with installation, usage, security notes, and testing instructions.
 - CHANGELOG.md for tracking changes.
+- Custom Bech32 checksum implementation with extended code length (4096) to support encoding of PQ public keys longer than standard limits.
 
 ### Security
 - Post-quantum security via NIST-standardized ML-KEM-768.
@@ -31,3 +32,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Compatibility
 - Requires Rust and age library dependencies.
 - CLI interop tests need age CLI >= v1.3.0 installed.
+- Bech32 handling uses `rust-bitcoin/rust-bech32` for keys exceeding standard length limits.

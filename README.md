@@ -8,7 +8,7 @@ A Rust library providing post-quantum hybrid recipients and identities compatibl
 
 ## Compatibility
 
-- Fully compatible with the age file format (CLI >= v1.3.0 for PQ support).
+- Fully compatible with the age file format. Age CLI v1.3.0+ natively supports ML-KEM-768+X25519 stanzas without a plugin. Versions < v1.3.0 require the age-go plugin for backward compatibility (available from the age repository at https://github.com/FiloSottile/age/blob/0293aca1d732e96b06ac2decb098cc2a6c9a14e5/extra/age-plugin-pq/plugin-pq.go; pre-built binaries may be found through package managers or OS distributions under 'age-plugin-pq').
 - Designed for Rage integration without external dependencies.
 
 ## Overview
@@ -62,7 +62,7 @@ The test suite includes comprehensive coverage for key functionality:
 
 - **Unit tests** (`hybrid_recipient_tests.rs`): Verify PQ key generation, serialization, parsing, and basic encrypt/decrypt roundtrips without external dependencies.
 - **Stanza tests** (`pq_stanza_tests.rs`): Test low-level PQ stanza wrapping/unwrapping, error handling for malformed inputs, and multi-recipient encryption.
-- **CLI interop tests** (`age_cli_interop_tests.rs`, `roundtrip_tests.rs`): Ensure full compatibility with the age CLI by encrypting with the library and decrypting with the CLI (and vice versa). These tests require the age CLI (>= v1.3.0 for PQ support) to be installed; if unavailable, the tests skip gracefully with a clear message.
+- **CLI interop tests** (`age_cli_interop_tests.rs`, `roundtrip_tests.rs`): Ensure full compatibility with the age CLI by encrypting with the library and decrypting with the CLI (and vice versa). These tests require the age CLI (>= v1.3.0 for native PQ support; < v1.3.0 requires age-go plugin) to be installed; if unavailable, the tests skip gracefully with a clear message.
 - **Test data** (`tests/data/`): Contains sample files like `lorem.txt` (plaintext), `lorem.txt.age` (CLI-encrypted), and PQ keys for interop verification.
 
 Run tests with `cargo test`. For CLI interop tests, use `cargo test -- --nocapture` to see skip messages if the age CLI is unavailable or incompatible.
