@@ -12,7 +12,6 @@ use std::str::FromStr;
 use crate::HybridRecipientBech32;
 use bech32::primitives::decode::CheckedHrpstring;
 use bech32::{encode, Bech32, Hrp};
-// use bech32::NoChecksum;
 
 /// The stanza tag identifying this post-quantum hybrid recipient in the age file format.
 /// This tag is "mlkem768x25519" to indicate ML-KEM-768 combined with X25519.
