@@ -2,13 +2,17 @@ use age::{secrecy, Identity as AgeIdentity, Recipient as AgeRecipient};
 use age_core::format::{FileKey, Stanza};
 use age_core::secrecy::SecretString;
 use base64::prelude::{Engine as _, BASE64_STANDARD_NO_PAD};
-use bech32::{self, FromBase32, ToBase32, Variant};
 use pq_xwing_hpke::hpke::{new_sender, open};
 use pq_xwing_hpke::kem::{Kem, MlKem768X25519};
 use pq_xwing_hpke::{aead::new_aead, kdf::new_kdf};
 use secrecy::{ExposeSecret, SecretBox};
 use std::collections::HashSet;
 use std::str::FromStr;
+
+use crate::HybridRecipientBech32;
+use bech32::primitives::decode::CheckedHrpstring;
+use bech32::{encode, Bech32, Hrp};
+// use bech32::NoChecksum;
 
 /// The stanza tag identifying this post-quantum hybrid recipient in the age file format.
 /// This tag is "mlkem768x25519" to indicate ML-KEM-768 combined with X25519.
@@ -38,14 +42,6 @@ impl HybridRecipient {
     /// # Errors
     ///
     /// Returns an error if key generation fails.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// extern crate age_recipient_pq;
-    /// use age_recipient_pq::{HybridRecipient, HybridIdentity};
-    /// let (recipient, identity) = HybridRecipient::generate().unwrap();
-    /// ```
     pub fn generate() -> Result<(Self, HybridIdentity), Box<dyn std::error::Error>> {
         let kem = MlKem768X25519;
         let sk = kem.generate_key()?;
@@ -66,66 +62,40 @@ impl HybridRecipient {
     /// Parses a hybrid recipient from its string representation.
     ///
     /// The expected format is a Bech32-encoded string with HRP "age1pq" and the public key as data.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The string to parse.
-    ///
-    /// # Errors
-    ///
-    /// Returns an [`age::EncryptError`] if the string is malformed or the key is invalid.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// extern crate age_recipient_pq;
-    /// use age_recipient_pq::HybridRecipient;
-    /// let recipient = HybridRecipient::parse("age1pq1...").unwrap();
-    /// ```
+    /// Uses the classic Bech32 checksum (higher length limit).
     pub fn parse(s: &str) -> Result<Self, age::EncryptError> {
-        let (hrp, data5, variant) = bech32::decode(s).map_err(|e| {
+        let checked = CheckedHrpstring::new::<HybridRecipientBech32>(s).map_err(|e| {
             age::EncryptError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
         })?;
 
-        if variant != Variant::Bech32 || hrp != "age1pq" {
+        let expected_hrp = Hrp::parse("age1pq").map_err(|_| {
+            age::EncryptError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "invalid HRP",
+            ))
+        })?;
+
+        if checked.hrp() != expected_hrp {
             return Err(age::EncryptError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Invalid Bech32 variant or HRP: {} {:?}", hrp, variant),
+                "wrong HRP for hybrid recipient",
             )));
         }
 
-        let pub_key = Vec::<u8>::from_base32(&data5).map_err(|_| {
-            age::EncryptError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "invalid base32 data",
-            ))
-        })?;
+        let pub_key = checked.byte_iter().collect();
 
         Ok(Self { pub_key })
     }
 
-    /// Serializes the recipient to its canonical string format.
-    ///
-    /// Returns a Bech32-encoded string with HRP "age1pq" and the public key as data.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// extern crate age_recipient_pq;
-    /// use age_recipient_pq::HybridRecipient;
-    /// let (recipient, _) = HybridRecipient::generate().unwrap();
-    /// let str = recipient.to_string();
-    /// assert!(str.starts_with("age1pq1"));
-    /// ```
+    /// Serializes the recipient to its canonical string format (lowercase HRP).
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
-        let data5 = self.pub_key.to_base32();
-        bech32::encode("age1pq", data5, Variant::Bech32)
-            .expect("Bech32 encoding never fails with valid HRP + byte-derived data")
+        let hrp = Hrp::parse("age1pq").expect("static valid HRP");
+        encode::<HybridRecipientBech32>(hrp, &self.pub_key)
+            .expect("encoding with valid data never fails")
     }
 }
 
-/// Implements string parsing for [`HybridRecipient`].
 impl FromStr for HybridRecipient {
     type Err = &'static str;
 
@@ -134,24 +104,7 @@ impl FromStr for HybridRecipient {
     }
 }
 
-/// Implements the age [`AgeRecipient`] trait for [`HybridRecipient`].
 impl AgeRecipient for HybridRecipient {
-    /// Wraps a file key using HPKE with this recipient's public key.
-    ///
-    /// This generates an encrypted stanza that can be decrypted by the corresponding identity.
-    /// The stanza uses the tag "mlkem768x25519" and includes the encapsulated key.
-    ///
-    /// # Arguments
-    ///
-    /// * `file_key` - The file key to encrypt.
-    ///
-    /// # Returns
-    ///
-    /// A tuple of the created stanza and a set of labels including "postquantum".
-    ///
-    /// # Errors
-    ///
-    /// Returns an [`age::EncryptError`] if encryption fails.
     fn wrap_file_key(
         &self,
         file_key: &FileKey,
@@ -188,10 +141,6 @@ impl AgeRecipient for HybridRecipient {
 }
 
 /// A post-quantum hybrid identity for decryption, holding the private key seed.
-///
-/// This struct contains a 32-byte seed from which the private key is derived.
-/// The seed is securely wrapped in a [`SecretBox`] to ensure zeroization.
-/// It implements [`age::Identity`] for decryption in the age tool.
 pub struct HybridIdentity {
     seed: SecretBox<[u8; 32]>,
 }
@@ -199,42 +148,28 @@ pub struct HybridIdentity {
 impl HybridIdentity {
     /// Parses a hybrid identity from its bech32-encoded string representation.
     ///
-    /// The format uses HRP "AGE-SECRET-KEY-PQ-" and contains the 32-byte seed.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The string to parse.
-    ///
-    /// # Errors
-    ///
-    /// Returns an [`age::DecryptError`] if the string is invalid.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// extern crate age_recipient_pq;
-    /// use age_recipient_pq::HybridIdentity;
-    /// let identity = HybridIdentity::parse("AGE-SECRET-KEY-PQ-1...").unwrap();
-    /// ```
+    /// The format uses HRP "AGE-SECRET-KEY-PQ-" (case-insensitive) and contains the 32-byte seed.
+    /// Uses the classic Bech32 checksum (higher length limit).
     pub fn parse(s: &str) -> Result<Self, age::DecryptError> {
-        let (hrp, data5, variant) = bech32::decode(s).map_err(|e| {
+        let checked = CheckedHrpstring::new::<Bech32>(s).map_err(|e| {
             age::DecryptError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
         })?;
 
-        if variant != Variant::Bech32 || !hrp.eq_ignore_ascii_case("AGE-SECRET-KEY-PQ-") {
-            return Err(age::DecryptError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("Invalid HRP or variant: {} {:?}", hrp, variant),
-            )));
-        }
-
-        let seed_bytes = Vec::<u8>::from_base32(&data5).map_err(|_| {
+        let expected_hrp = Hrp::parse("age-secret-key-pq-").map_err(|_| {
             age::DecryptError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                "invalid base32 data",
+                "invalid HRP",
             ))
         })?;
 
+        if checked.hrp() != expected_hrp {
+            return Err(age::DecryptError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "wrong HRP for hybrid identity",
+            )));
+        }
+
+        let seed_bytes: Vec<u8> = checked.byte_iter().collect();
         let seed: [u8; 32] = seed_bytes.try_into().map_err(|_| {
             age::DecryptError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -247,43 +182,15 @@ impl HybridIdentity {
         })
     }
 
-    /// Serializes the identity to its bech32-encoded string representation.
-    ///
-    /// Returns a [`SecretString`] to prevent accidental exposure in logs.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// extern crate age_recipient_pq;
-    /// use age_recipient_pq::{HybridIdentity, HybridRecipient};
-    /// use age::secrecy::ExposeSecret;
-    /// let (_, identity) = HybridRecipient::generate().unwrap();
-    /// let secret_str = identity.to_string();
-    /// let str = secret_str.expose_secret().clone();
-    /// ```
+    /// Serializes the identity to its bech32-encoded string representation (uppercase).
     pub fn to_string(&self) -> SecretString {
-        let data5 = self.seed.expose_secret().to_base32();
-        let encoded = bech32::encode("age-secret-key-pq-", data5, Variant::Bech32)
-            .expect("Bech32 encoding never fails with valid HRP + byte-derived data");
-        SecretString::from(encoded.to_ascii_uppercase())
+        let hrp = Hrp::parse("age-secret-key-pq-").expect("static valid HRP");
+        let lower_encoded = encode::<Bech32>(hrp, self.seed.expose_secret())
+            .expect("encoding with valid data never fails");
+        SecretString::from(lower_encoded.to_ascii_uppercase())
     }
 
     /// Derives the public recipient from this identity.
-    ///
-    /// Computes the public key from the private key seed.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if key derivation fails.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// extern crate age_recipient_pq;
-    /// use age_recipient_pq::{HybridIdentity, HybridRecipient};
-    /// let (_, identity) = HybridRecipient::generate().unwrap();
-    /// let recipient = identity.to_public().unwrap();
-    /// ```
     pub fn to_public(&self) -> Result<HybridRecipient, Box<dyn std::error::Error>> {
         let kem = MlKem768X25519;
         let sk = kem.new_private_key(self.seed.expose_secret())?;
@@ -295,7 +202,6 @@ impl HybridIdentity {
     }
 }
 
-/// Implements string parsing for [`HybridIdentity`].
 impl FromStr for HybridIdentity {
     type Err = &'static str;
 
@@ -304,19 +210,7 @@ impl FromStr for HybridIdentity {
     }
 }
 
-/// Implements the age [`AgeIdentity`] trait for [`HybridIdentity`].
 impl AgeIdentity for HybridIdentity {
-    /// Attempts to decrypt a single stanza using this identity.
-    ///
-    /// Supports the current format (tag + base64(enc)) and legacy format (base64(enc)) for compatibility.
-    ///
-    /// # Arguments
-    ///
-    /// * `stanza` - The stanza to decrypt.
-    ///
-    /// # Returns
-    ///
-    /// `Some(Ok(file_key))` on success, `Some(Err(e))` on decryption error, or `None` if not applicable.
     fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, age::DecryptError>> {
         if stanza.tag != STANZA_TAG {
             return None;
@@ -361,17 +255,6 @@ impl AgeIdentity for HybridIdentity {
         Some(Ok(file_key))
     }
 
-    /// Attempts to decrypt any of the provided stanzas using this identity.
-    ///
-    /// Tries each stanza in order and returns the result of the first successful decryption.
-    ///
-    /// # Arguments
-    ///
-    /// * `stanzas` - The stanzas to try.
-    ///
-    /// # Returns
-    ///
-    /// `Some(Ok(file_key))` on success, `Some(Err(e))` on error, or `None` if none succeed.
     fn unwrap_stanzas(&self, stanzas: &[Stanza]) -> Option<Result<FileKey, age::DecryptError>> {
         stanzas.iter().find_map(|stanza| self.unwrap_stanza(stanza))
     }

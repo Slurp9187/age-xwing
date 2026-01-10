@@ -1,3 +1,4 @@
+pub mod bech32;
 /// # age-recipient-pq
 ///
 /// This crate implements a post-quantum hybrid recipient and identity for the [`age`] encryption
@@ -61,6 +62,7 @@
 /// This module contains the core implementation of the hybrid post-quantum recipient and identity.
 pub mod pq;
 
+pub use bech32::HybridRecipientBech32;
 /// Re-exports the main types for convenience.
 ///
 /// This allows users to import `HybridRecipient` and `HybridIdentity` directly from the crate root.
